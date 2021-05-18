@@ -14,22 +14,25 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 DHT dht(DHTPIN, DHTTYPE);
 SoftwareSerial co2meter(CO2Rx, CO2Tx);
 
-typedef struct DHTData{
+typedef struct DHTData
+{
   float temperature;
   float humidity;  
 };
 
 const int threshold = 1500;
-unsigned int preheat = 30; //loops
+unsigned long preheat_time = 180000; // preheat 3 min
 const unsigned long inact_time = 3600000; //millis
 unsigned long enter_time = 0;
 unsigned long current_time = 0;
 byte read_co2meter[9] = {0xFF, 0x01, 0x86, 0x00, 0x00, 0x00, 0x00, 0x00, 0x79};
+bool isPreheating = true;
 
 enum States { Normal, Emergency, Inactive};
 States state = Normal;
 
-void setup() {
+void setup()
+{
   lcd.init(); //16col, 2row, backlight default
   dht.begin();
   for(int i = 0; i < 3; i++) {
@@ -44,12 +47,19 @@ void setup() {
   lcd.print("CO2 Detector");
   delay(1000);
   lcd.setCursor(0, 1);
-  lcd.print("Hello, Maker!");
+  lcd.print("Good Day!");
   delay(3000);
   lcd.clear();
 }
 
-void loop() {
+void loop()
+{
+  if(isPreheating)
+  {
+    if(millis() > preheat_time){
+      isPreheating = false;  
+    }
+  }
   switch (state)
   {
     case Normal:
@@ -109,14 +119,16 @@ void updateDisplay(int ppm, DHTData data)
 {
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print("CO2: ");
-  if(preheat > 0)
+  if(isPreheating)
   {
-    lcd.print("Preheating ");
-    lcd.print(preheat);
+    lcd.print("CO2:Preheat ");
+    unsigned int time_left = (preheat_time-millis())/1000;
+    lcd.print(time_left);
+    lcd.print("s");
   }
   else
   {
+    lcd.print("CO2: ");
     lcd.print(ppm);
     lcd.print("ppm");  
   }
@@ -133,21 +145,14 @@ void standard_procedure()
   DHTData comfort = getTemperatureHumidity();
   updateDisplay(ppm, comfort);
   
-  if(preheat > 0)
+  if(ppm > threshold)
   {
-    preheat--;
+    state = Emergency;
+    enter_time = millis();
   }
   else
   {
-    if(ppm > threshold)
-    {
-      state = Emergency;
-      enter_time = millis();
-    }
-    else
-    {
-      state = Normal;  
-    }
+    state = Normal;  
   }
 }
 
