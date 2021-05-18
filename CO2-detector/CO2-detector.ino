@@ -20,12 +20,11 @@ typedef struct DHTData{
 };
 
 const int threshold = 1500;
-unsigned int preheat = 50; //loops
+unsigned int preheat = 30; //loops
 const unsigned long inact_time = 3600000; //millis
 unsigned long enter_time = 0;
 unsigned long current_time = 0;
-byte cmd[9] = {0xFF, 0x01, 0x86, 0x00, 0x00, 0x00, 0x00, 0x00, 0x79};
-unsigned char response[9];
+byte read_co2meter[9] = {0xFF, 0x01, 0x86, 0x00, 0x00, 0x00, 0x00, 0x00, 0x79};
 
 enum States { Normal, Emergency, Inactive};
 States state = Normal;
@@ -66,12 +65,28 @@ void loop() {
   delay(10000);
 }
 
-unsigned int getCO2ppm()
+byte getChecksum(byte* packet)
 {
-  co2meter.write(cmd, 9);
+  byte checksum;
+  for(int i = 1; i < 8; i++)
+  {
+    checksum += packet[i];
+  }
+  checksum = 0xFF - checksum + 0x01;
+  return checksum;
+}
+
+int getCO2ppm()
+{
+  byte response[9];
+  co2meter.write(read_co2meter, 9);
   co2meter.readBytes(response, 9);
-  unsigned int responseHIGH = (unsigned int)response[2];
-  unsigned int responseLOW = (unsigned int)response[3];
+  if(response[8] != getChecksum(response))
+  {
+    return -1;  
+  }
+  int responseHIGH = (int)response[2];
+  int responseLOW = (int)response[3];
   return (256*responseHIGH)+responseLOW;
 }
 
@@ -82,10 +97,15 @@ DHTData getTemperatureHumidity()
   data.temperature = dht.readTemperature();
   // Reading temperature or humidity takes about 250 milliseconds
   delay(250);
+  if(isnan(data.humidity) || isnan(data.temperature))
+  {
+    data.humidity = -1;
+    data.temperature = -1;  
+  }
   return data;
 }
 
-void updateDisplay(unsigned int ppm, DHTData data)
+void updateDisplay(int ppm, DHTData data)
 {
   lcd.clear();
   lcd.setCursor(0, 0);
@@ -109,7 +129,7 @@ void updateDisplay(unsigned int ppm, DHTData data)
   
 void standard_procedure()
 {
-  unsigned int ppm = getCO2ppm();
+  int ppm = getCO2ppm();
   DHTData comfort = getTemperatureHumidity();
   updateDisplay(ppm, comfort);
   
@@ -148,7 +168,7 @@ void emergency_beep()
 
 void inactive_period()
 {
-  unsigned int ppm = getCO2ppm();
+  int ppm = getCO2ppm();
   DHTData comfort = getTemperatureHumidity();
   updateDisplay(ppm, comfort);
  
