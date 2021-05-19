@@ -12,4 +12,5 @@ In order to using DHT22, you have to edit the definition macro from `#define DHT
 The following libraries are necessary for reading sensor data and displaying.
 * LiquidCrystal
 * DHT sensor library
+
 Both are available in Arduino IDE library manager.
