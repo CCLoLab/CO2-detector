@@ -1,8 +1,8 @@
+#include <LiquidCrystal_I2C.h>
 #include <SoftwareSerial.h>
 #include <Wire.h>
-#include <LiquidCrystal_I2C.h>
 #include "DHT.h"
-#define DHTTYPE DHT11
+#define DHTTYPE DHT22
 
 const byte Buzzer = 9;
 const byte DHTPIN = 7;
